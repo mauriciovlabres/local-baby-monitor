@@ -1,0 +1,11 @@
+.env
+config/.env
+config/go2rtc.yaml
+go2rtc
+*.log
+__pycache__/
+*.pyc
+venv/
+.venv/
+.DS_Store
+Thumbs.db

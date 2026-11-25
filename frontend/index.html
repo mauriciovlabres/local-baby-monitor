@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#000000">
+  <title>Local Baby Monitor</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="app">
+    <section class="video-wrap" id="videoWrap">
+      <span class="pill" id="statusPill">CONNECTING...</span>
+      <canvas id="mockCanvas" width="640" height="360" hidden></canvas>
+      <video id="liveVideo" autoplay playsinline muted hidden></video>
+    </section>
+
+    <section class="controls">
+      <div class="card">
+        <h2>Camera</h2>
+        <div class="dpad">
+          <button class="btn up" data-dir="up" aria-label="Up">
+            <svg viewBox="0 0 24 24"><path d="M12 6l8 10H4z"/></svg>
+          </button>
+          <button class="btn left" data-dir="left" aria-label="Left">
+            <svg viewBox="0 0 24 24"><path d="M6 12l10-8v16z"/></svg>
+          </button>
+          <button class="btn stop" data-dir="stop" aria-label="Stop">
+            <svg viewBox="0 0 24 24"><rect x="7" y="7" width="10" height="10" rx="1"/></svg>
+          </button>
+          <button class="btn right" data-dir="right" aria-label="Right">
+            <svg viewBox="0 0 24 24"><path d="M18 12L8 4v16z"/></svg>
+          </button>
+          <button class="btn down" data-dir="down" aria-label="Down">
+            <svg viewBox="0 0 24 24"><path d="M12 18L4 8h16z"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Audio</h2>
+        <button class="btn wide" id="muteBtn" aria-pressed="true">
+          <svg viewBox="0 0 24 24" id="muteIcon"></svg>
+          <span id="muteLabel">Unmute</span>
+        </button>
+        <div class="meter" aria-label="Audio level"><div class="meter-bar" id="meterBar"></div></div>
+      </div>
+
+      <div class="card">
+        <h2>Display</h2>
+        <button class="btn wide" id="wakeBtn" aria-pressed="false">
+          <svg viewBox="0 0 24 24"><path d="M12 4a8 8 0 100 16 8 8 0 000-16zm0 3a1 1 0 011 1v4h3a1 1 0 010 2h-4a1 1 0 01-1-1V8a1 1 0 011-1z"/></svg>
+          <span id="wakeLabel">Keep Screen On: OFF</span>
+          <span class="dot" id="wakeDot"></span>
+        </button>
+        <p class="hint" id="wakeHint" hidden>Wake Lock is not supported by this browser.</p>
+      </div>
+
+      <div class="card" id="whiteNoiseCard">
+        <h2>Phase 2: White Noise</h2>
+        <button class="btn wide" id="whiteNoiseBtn" disabled>
+          <svg viewBox="0 0 24 24"><path d="M3 10h3l4-4v12l-4-4H3zm13-2a5 5 0 010 8l-1-1.5a3 3 0 000-5z"/></svg>
+          <span>Coming soon</span>
+        </button>
+      </div>
+    </section>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>
