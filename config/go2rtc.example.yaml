@@ -6,3 +6,4 @@ streams:
 
 api:
   listen: ":1984"
+  origin: "*"

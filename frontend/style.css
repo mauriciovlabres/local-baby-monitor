@@ -88,4 +88,16 @@ html, body {
 .dot { width: 10px; height: 10px; border-radius: 50%; background: #333; }
 .dot.on { background: #5f9c76; }
 
-.hint { margin: 10px 0 0; font-size: 13px; color: #a56a6a; }
+/* Hidden wake-lock fallback video. Avoid display:none: some mobile browsers
+   pause videos that are not rendered. */
+.wake-video {
+  position: fixed;
+  width: 1px;
+  height: 1px;
+  opacity: 0.01;
+  pointer-events: none;
+  z-index: -1;
+}
+
+/* Prevent scroll/zoom gestures from hijacking press-and-hold PTZ buttons. */
+.dpad .btn { touch-action: none; user-select: none; -webkit-user-select: none; }

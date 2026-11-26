@@ -69,10 +69,15 @@ Repurpose an old Android smartphone (running Termux, **no root required**) into 
 
 - [x] Project architecture
 - [x] Termux setup
-- [ ] WebRTC dark-mode frontend
-- [ ] ONVIF PTZ control
+- [x] WebRTC dark-mode frontend with Wake Lock & auto-reconnect
+- [x] Local ONVIF PTZ (Pan/Tilt) controls
 - [ ] Audio level meter
 - [ ] Phase 2: Remote-controlled White Noise generator
+
+## Credits
+
+- [`go2rtc`](https://github.com/AlexxIT/go2rtc) by Alexey Khit for WebRTC streaming.
+- The silent MP4 used by the Wake Lock fallback comes from [NoSleep.js](https://github.com/richtr/NoSleep.js) by Rich Tibbett (MIT License).
 
 ## License
 

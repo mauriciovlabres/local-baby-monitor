@@ -14,26 +14,80 @@ function setStatus(text, cls) {
 const ptz = { x: 0, y: 0 }; // crosshair offset used by the mock feed
 const STEP = 30;
 
-async function sendPtz(direction) {
+// Requests are chained so a "stop" can never overtake its "move".
+let ptzQueue = Promise.resolve();
+
+function postPtz(direction) {
+  ptzQueue = ptzQueue.then(async () => {
+    try {
+      const res = await fetch("/api/ptz/move", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ direction }),
+      });
+      if (!res.ok) console.warn("PTZ request failed:", direction, res.status);
+    } catch (err) {
+      console.warn("PTZ request error:", err);
+    }
+  });
+  return ptzQueue;
+}
+
+function updateMockCrosshair(direction) {
   if (direction === "left") ptz.x = Math.max(-200, ptz.x - STEP);
   if (direction === "right") ptz.x = Math.min(200, ptz.x + STEP);
   if (direction === "up") ptz.y = Math.max(-110, ptz.y - STEP);
   if (direction === "down") ptz.y = Math.min(110, ptz.y + STEP);
   if (direction === "stop") { ptz.x = 0; ptz.y = 0; }
-  try {
-    const res = await fetch("/api/ptz/move", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ direction }),
-    });
-    if (!res.ok) console.warn("PTZ request failed:", res.status);
-  } catch (err) {
-    console.warn("PTZ request error:", err);
-  }
+}
+
+// Press and hold = move, release = stop. A quick tap still moves for at
+// least MIN_MOVE_MS (a small nudge) before stopping.
+const MIN_MOVE_MS = 200;
+let activeMove = null; // { direction, startedAt, pointerId }
+
+function endMove() {
+  if (!activeMove) return;
+  const { startedAt } = activeMove;
+  activeMove = null;
+  const wait = Math.max(0, MIN_MOVE_MS - (performance.now() - startedAt));
+  setTimeout(() => {
+    // A new press may have started meanwhile; it will send its own stop.
+    if (!activeMove) postPtz("stop");
+  }, wait);
 }
 
 document.querySelectorAll("[data-dir]").forEach((btn) => {
-  btn.addEventListener("click", () => sendPtz(btn.dataset.dir));
+  const dir = btn.dataset.dir;
+  if (dir === "stop") {
+    btn.addEventListener("click", () => {
+      activeMove = null;
+      updateMockCrosshair("stop");
+      postPtz("stop");
+    });
+    return;
+  }
+  btn.addEventListener("pointerdown", (ev) => {
+    ev.preventDefault();
+    try { btn.setPointerCapture(ev.pointerId); } catch (_) { /* ignore */ }
+    if (activeMove) return; // ignore a second finger while moving
+    activeMove = { direction: dir, startedAt: performance.now(), pointerId: ev.pointerId };
+    updateMockCrosshair(dir);
+    postPtz(dir);
+  });
+  const release = (ev) => {
+    if (activeMove && activeMove.pointerId === ev.pointerId) endMove();
+  };
+  btn.addEventListener("pointerup", release);
+  btn.addEventListener("pointercancel", release);
+  btn.addEventListener("lostpointercapture", release);
+  btn.addEventListener("contextmenu", (ev) => ev.preventDefault());
+});
+
+// Never leave the camera spinning if the page loses focus mid-press.
+window.addEventListener("blur", endMove);
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "hidden") endMove();
 });
 
 /* ---------------- Audio UI ---------------- */
@@ -87,47 +141,114 @@ function updateMeter(t) {
 }
 
 /* ---------------- Wake Lock ---------------- */
+// Primary: native Screen Wake Lock API (secure contexts only).
+// Fallback: hidden looping silent video (NoSleep technique) for plain
+// http://<lan-ip> where the native API is blocked. The inline MP4 comes from
+// NoSleep.js (MIT License, (c) Rich Tibbett), so no network request is needed.
+const NOSLEEP_MP4 = "data:video/mp4;base64,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";
+
 const wakeBtn = $("wakeBtn");
-let wakeLock = null;
-let wakeWanted = false;
+let wakeLock = null;       // native WakeLockSentinel, if held
+let wakeWanted = false;    // user toggle state
+let wakeMode = null;       // "native" | "fallback" | null
+let wakeVideo = null;
+
+function getWakeVideo() {
+  if (wakeVideo) return wakeVideo;
+  const v = document.createElement("video");
+  v.className = "wake-video";
+  v.setAttribute("playsinline", "");
+  v.setAttribute("webkit-playsinline", "");
+  v.setAttribute("aria-hidden", "true");
+  v.setAttribute("tabindex", "-1");
+  v.muted = true;
+  v.loop = true;
+  v.playsInline = true;
+  v.src = NOSLEEP_MP4;
+  document.body.appendChild(v);
+  wakeVideo = v;
+  return v;
+}
 
 function renderWake() {
-  const on = !!wakeLock;
-  $("wakeLabel").textContent = "Keep Screen On: " + (on ? "ON" : "OFF");
+  const on = wakeWanted;
+  let label = "Keep Screen On";
+  if (on) label = wakeMode === "fallback" ? "Screen On (HTTP Fallback)" : "Screen On";
+  $("wakeLabel").textContent = label;
   $("wakeDot").classList.toggle("on", on);
   wakeBtn.setAttribute("aria-pressed", String(on));
   wakeBtn.classList.toggle("on", on);
+  wakeBtn.title = on
+    ? (wakeMode === "fallback" ? "Using hidden-video fallback (insecure context)" : "Using native Wake Lock")
+    : "Tap to keep the screen on";
 }
-async function acquireWake() {
+
+function nativeAvailable() {
+  return window.isSecureContext && "wakeLock" in navigator;
+}
+
+async function acquireNative() {
+  if (!nativeAvailable()) return false;
   try {
     wakeLock = await navigator.wakeLock.request("screen");
-    wakeLock.addEventListener("release", () => { wakeLock = null; renderWake(); });
+    wakeLock.addEventListener("release", () => { wakeLock = null; });
+    return true;
   } catch (err) {
-    console.warn("Wake Lock failed:", err);
+    console.warn("Native Wake Lock failed, using fallback:", err);
     wakeLock = null;
-    wakeWanted = false;
+    return false;
+  }
+}
+
+// Must be called synchronously from the click handler (user gesture).
+function startFallbackVideo() {
+  const p = getWakeVideo().play();
+  if (p && typeof p.catch === "function") {
+    p.catch((err) => console.warn("Fallback video play blocked:", err));
+  }
+}
+
+async function enableWake() {
+  wakeWanted = true;
+  startFallbackVideo(); // synchronous, inside the user gesture
+  wakeMode = "fallback";
+  renderWake();
+  if (await acquireNative()) {
+    wakeMode = "native";
+    if (wakeVideo) wakeVideo.pause(); // native lock is enough
   }
   renderWake();
 }
-if (!("wakeLock" in navigator)) {
-  wakeBtn.disabled = true;
-  $("wakeLabel").textContent = "Keep Screen On: N/A";
-  $("wakeHint").hidden = false;
-} else {
-  wakeBtn.addEventListener("click", async () => {
-    if (wakeLock) {
-      wakeWanted = false;
-      await wakeLock.release();
-    } else {
-      wakeWanted = true;
-      await acquireWake();
-    }
-  });
-  // The lock is released when the tab is hidden; re-acquire on return.
-  document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "visible" && wakeWanted && !wakeLock) acquireWake();
-  });
+
+async function disableWake() {
+  wakeWanted = false;
+  wakeMode = null;
+  if (wakeVideo) wakeVideo.pause();
+  if (wakeLock) {
+    try { await wakeLock.release(); } catch (err) { console.warn(err); }
+    wakeLock = null;
+  }
+  renderWake();
 }
+
+wakeBtn.addEventListener("click", () => {
+  if (wakeWanted) disableWake();
+  else enableWake(); // play() runs synchronously before the first await
+});
+
+// Native locks are released when the tab is hidden and fallback video may be
+// paused by the browser: re-acquire / resume when the user comes back.
+document.addEventListener("visibilitychange", async () => {
+  if (document.visibilityState !== "visible" || !wakeWanted) return;
+  if (await acquireNative()) {
+    wakeMode = "native";
+    if (wakeVideo) wakeVideo.pause();
+  } else {
+    wakeMode = "fallback";
+    startFallbackVideo();
+  }
+  renderWake();
+});
 renderWake();
 
 /* ---------------- Mock feed ---------------- */

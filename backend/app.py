@@ -11,6 +11,9 @@ from pathlib import Path
 from dotenv import load_dotenv
 from flask import Flask, jsonify, request
 
+import onvif_ptz
+from onvif_ptz import OnvifError
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 FRONTEND_DIR = BASE_DIR / "frontend"
 ENV_FILE = BASE_DIR / "config" / ".env"
@@ -44,13 +47,10 @@ app = Flask(__name__, static_folder=str(FRONTEND_DIR), static_url_path="")
 def send_onvif_ptz(direction: str) -> None:
     """Send a PTZ command to the Tapo C200 via ONVIF.
 
-    TODO: Implement using CAMERA_IP, CAMERA_USER, CAMERA_PASSWORD and
-    ONVIF_PORT (default 2020) read from the environment. Credentials must
-    stay in the backend and never be exposed to the frontend.
-    Suggested mapping: up/down/left/right -> ContinuousMove with a velocity
-    vector; stop -> Stop.
+    Credentials are read from the environment inside onvif_ptz and never
+    reach the frontend. Raises OnvifError on failure.
     """
-    raise NotImplementedError("ONVIF PTZ is not implemented yet")
+    onvif_ptz.move(direction)
 
 
 @app.get("/")
@@ -78,11 +78,12 @@ def ptz_move():
 
     try:
         send_onvif_ptz(direction)
-    except NotImplementedError as exc:
-        return jsonify({"status": "error", "message": str(exc)}), 501
+    except OnvifError as exc:
+        log.error("PTZ '%s' failed: %s", direction, exc)
+        return jsonify({"status": "error", "message": "PTZ command failed"}), exc.http_status
     except Exception:  # noqa: BLE001 - never leak camera details to the client
         log.exception("PTZ command failed")
-        return jsonify({"status": "error", "message": "PTZ command failed"}), 502
+        return jsonify({"status": "error", "message": "PTZ command failed"}), 500
     return jsonify({"status": "ok", "mock": False, "direction": direction}), 200
 
 
