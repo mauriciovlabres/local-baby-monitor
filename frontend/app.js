@@ -390,3 +390,58 @@ function startLiveFeed(go2rtcUrl) {
     setStatus("BACKEND OFFLINE", "warn");
   }
 })();
+
+/* ---------------- Fullscreen ---------------- */
+$("fsBtn").addEventListener("click", () => {
+  const wrap = $("videoWrap");
+  const fsEl = document.fullscreenElement || document.webkitFullscreenElement;
+  if (fsEl) {
+    (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+  } else if (wrap.requestFullscreen) {
+    wrap.requestFullscreen().catch((err) => console.warn("Fullscreen failed:", err));
+  } else if (wrap.webkitRequestFullscreen) {
+    wrap.webkitRequestFullscreen();
+  } else if (video.webkitEnterFullscreen && !video.hidden) {
+    video.webkitEnterFullscreen(); // iOS Safari: only the <video> can go fullscreen
+  }
+});
+
+/* ---------------- White Noise (plays on the host device) ---------------- */
+const wnBtn = $("whiteNoiseBtn");
+const wnHint = $("whiteNoiseHint");
+
+function renderWhiteNoise(state) {
+  const playing = !!(state && state.playing);
+  $("whiteNoiseLabel").textContent = "White Noise: " + (playing ? "ON" : "OFF");
+  $("whiteNoiseDot").classList.toggle("on", playing);
+  wnBtn.setAttribute("aria-pressed", String(playing));
+  wnBtn.classList.toggle("on", playing);
+  if (state && state.supported === false) {
+    wnBtn.disabled = true;
+    wnHint.textContent = "No audio player found on the host (install mpv or sox).";
+    wnHint.hidden = false;
+  } else if (state && state.status === "error") {
+    wnHint.textContent = state.message || "White noise failed.";
+    wnHint.hidden = false;
+  } else {
+    wnHint.hidden = true;
+  }
+}
+
+async function whiteNoiseRequest(options) {
+  try {
+    const res = await fetch("/api/whitenoise", options);
+    renderWhiteNoise(await res.json());
+  } catch (err) {
+    console.warn("White noise request failed:", err);
+  }
+}
+
+wnBtn.addEventListener("click", () => {
+  whiteNoiseRequest({
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "toggle" }),
+  });
+});
+whiteNoiseRequest(); // sync with the server state on load

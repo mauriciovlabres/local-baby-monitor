@@ -4,6 +4,7 @@ Serves the static frontend and exposes a small REST API.
 Configuration is read from config/.env (optional; sane defaults apply).
 """
 
+import atexit
 import logging
 import os
 from pathlib import Path
@@ -12,6 +13,7 @@ from dotenv import load_dotenv
 from flask import Flask, jsonify, request
 
 import onvif_ptz
+import whitenoise
 from onvif_ptz import OnvifError
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -87,6 +89,36 @@ def ptz_move():
     return jsonify({"status": "ok", "mock": False, "direction": direction}), 200
 
 
+@app.get("/api/whitenoise")
+def whitenoise_status():
+    return jsonify(whitenoise.status())
+
+
+@app.post("/api/whitenoise")
+def whitenoise_action():
+    data = request.get_json(silent=True) or {}
+    action = data.get("action")
+    actions = {"play": whitenoise.play, "stop": whitenoise.stop,
+               "toggle": whitenoise.toggle}
+    if action not in actions:
+        return jsonify({"status": "error",
+                        "message": "action must be one of: play, stop, toggle"}), 400
+    try:
+        actions[action]()
+    except whitenoise.WhiteNoiseError as exc:
+        log.error("White noise '%s' failed: %s", action, exc)
+        state = whitenoise.status()
+        state.update({"status": "error", "message": str(exc)})
+        return jsonify(state), 503
+    except Exception:  # noqa: BLE001
+        log.exception("White noise failed")
+        return jsonify({"status": "error", "message": "White noise failed"}), 500
+    state = whitenoise.status()
+    state["status"] = "ok"
+    return jsonify(state), 200
+
+
 if __name__ == "__main__":
+    atexit.register(whitenoise.stop)
     log.info("Starting Local Baby Monitor on 0.0.0.0:%d (mock_mode=%s)", SERVER_PORT, MOCK_MODE)
     app.run(host="0.0.0.0", port=SERVER_PORT, debug=False)

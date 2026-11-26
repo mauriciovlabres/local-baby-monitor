@@ -53,6 +53,17 @@ Repurpose an old Android smartphone (running Termux, **no root required**) into 
    ```
 7. Open `http://<android-ip>:8000` from any browser on your LAN.
 
+## Termux Installation
+
+```bash
+pkg install python git
+pip install -r backend/requirements.txt
+# Optional: audio player for host-side White Noise playback
+pkg install mpv
+```
+
+> `mpv` is optional and only needed for the White Noise feature. `sox` or `termux-api` (`termux-media-player`) also work as alternatives.
+
 ## Configuration
 
 | Variable | Description | Default |
@@ -71,8 +82,8 @@ Repurpose an old Android smartphone (running Termux, **no root required**) into 
 - [x] Termux setup
 - [x] WebRTC dark-mode frontend with Wake Lock & auto-reconnect
 - [x] Local ONVIF PTZ (Pan/Tilt) controls
-- [ ] Audio level meter
-- [ ] Phase 2: Remote-controlled White Noise generator
+- [x] Audio level meter
+- [x] Phase 2: Remote-controlled White Noise generator
 
 ## Credits
 

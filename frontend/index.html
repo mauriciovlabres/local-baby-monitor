@@ -14,6 +14,9 @@
       <span class="pill" id="statusPill">CONNECTING...</span>
       <canvas id="mockCanvas" width="640" height="360" hidden></canvas>
       <video id="liveVideo" autoplay playsinline muted hidden></video>
+      <button class="fs-btn" id="fsBtn" aria-label="Fullscreen" title="Fullscreen">
+        <svg viewBox="0 0 24 24"><path d="M4 4h6v2H6v4H4zm10 0h6v6h-2V6h-4zM4 14h2v4h4v2H4zm14 0h2v6h-6v-2h4z"/></svg>
+      </button>
     </section>
 
     <section class="controls">
@@ -57,11 +60,13 @@
       </div>
 
       <div class="card" id="whiteNoiseCard">
-        <h2>Phase 2: White Noise</h2>
-        <button class="btn wide" id="whiteNoiseBtn" disabled>
+        <h2>White Noise <span class="sub">(plays on the host device)</span></h2>
+        <button class="btn wide" id="whiteNoiseBtn" aria-pressed="false">
           <svg viewBox="0 0 24 24"><path d="M3 10h3l4-4v12l-4-4H3zm13-2a5 5 0 010 8l-1-1.5a3 3 0 000-5z"/></svg>
-          <span>Coming soon</span>
+          <span id="whiteNoiseLabel">White Noise: OFF</span>
+          <span class="dot" id="whiteNoiseDot"></span>
         </button>
+        <p class="hint" id="whiteNoiseHint" hidden></p>
       </div>
     </section>
   </main>
